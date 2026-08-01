@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathAI - Ứng Dụng Học Toán Cá Nhân Hóa</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.js"></script>
+    <!-- Nhúng thư viện Google Gen AI SDK dành cho Web qua CDN -->
+    <script type="importmap">
+      {
+        "imports": {
+          "@google/genai": "https://esm.run/@google/genai"
+        }
+      }
+    </script>
+</head>
+<body class="bg-gray-50 font-sans min-h-screen flex flex-col relative">
+
+    <!-- Header -->
+    <header class="bg-blue-600 text-white shadow-md p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-bold tracking-wide">📐 MathAI</h1>
+            <span class="bg-blue-700 px-3 py-1 rounded text-sm font-medium">Lộ trình cá nhân hóa</span>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto flex-grow p-4 max-w-4xl">
+        <!-- Bước 1: Cấu hình API Key (Mới) -->
+        <section class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <h3 class="font-semibold text-yellow-800 mb-1">🔑 Cấu hình Gemini API Key để kích hoạt Chatbot:</h3>
+            <p class="text-xs text-yellow-700 mb-2">Để bảo mật, hãy nhập API Key của bạn tại đây (chỉ lưu tại trình duyệt của bạn, không bị lộ ra ngoài):</p>
+            <div class="flex gap-2">
+                <input type="password" id="api-key-input" placeholder="Dán mã AIzaSy... của bạn vào đây" class="flex-grow border rounded p-2 text-sm focus:ring-2 focus:ring-yellow-500">
+                <button onclick="saveApiKey()" class="bg-yellow-600 hover:bg-yellow-700 text-white text-sm font-medium px-4 py-2 rounded transition">Lưu Key</button>
+            </div>
+        </section>
+
+        <!-- Bước 2: Thiết lập cấu hình người dùng -->
+        <section id="setup-section" class="bg-white rounded-lg shadow p-6 mb-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-800">🎯 Bước 1: Thiết lập mục tiêu của bạn</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Chọn Chủ Đề:</label>
+                    <select id="topic-select" class="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="algebra">Đại số (Phương trình, Hệ phương trình)</option>
+                        <option value="geometry">Hình học (Diện tích, Thể tích, Pitago)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Mục Tiêu Học Tập:</label>
+                    <select id="level-select" class="w-full border rounded p-2 focus:ring-2 focus:ring-blue-500">
+                        <option value="basic">Lấy gốc & Ôn tập cơ bản</option>
+                        <option value="advanced">Bứt phá & Luyện nâng cao</option>
+                    </select>
+                </div>
+            </div>
+            <button onclick="startLearning()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-medium py-2.5 rounded transition">
+                Bắt Đầu Lộ Trình Riêng Khởi Tạo Cho Bạn
+            </button>
+        </section>
+
+        <!-- Bước 3: Không gian học tập tương tác -->
+        <section id="learning-section" class="bg-white rounded-lg shadow p-6 hidden">
+            <div class="flex justify-between items-center border-b pb-4 mb-4">
+                <div>
+                    <span class="text-sm text-gray-500">Chủ đề:</span>
+                    <span id="current-topic-badge" class="ml-1 bg-gray-100 text-gray-800 text-xs font-semibold px-2.5 py-0.5 rounded">---</span>
+                </div>
+                <div class="text-right">
+                    <span class="text-sm text-gray-500">Trình độ hiện tại:</span>
+                    <span id="current-level-badge" class="ml-1 bg-green-100 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded">---</span>
+                </div>
+            </div>
+
+            <div class="mb-6 p-4 bg-blue-50 rounded-lg border border-blue-100">
+                <span class="text-xs font-bold text-blue-600 uppercase tracking-wider block mb-1">Câu hỏi hệ thống đề xuất:</span>
+                <p id="question-text" class="text-lg font-medium text-gray-900">Đang tải câu hỏi...</p>
+            </div>
+
+            <div id="options-container" class="grid grid-cols-1 gap-3 mb-6"></div>
+
+            <div id="feedback-container" class="hidden p-4 rounded-lg mb-6">
+                <p id="feedback-message" class="font-medium"></p>
+                <p id="feedback-explanation" class="text-sm text-gray-600 mt-1"></p>
+                <div class="mt-3 flex gap-2">
+                    <button onclick="nextQuestion()" class="bg-gray-800 hover:bg-gray-900 text-white text-sm px-4 py-2 rounded transition">
+                        Tiếp tục câu hỏi tiếp theo
+                    </button>
+                    <!-- Nút hỏi nhanh trợ lý AI về câu hỏi này -->
+                    <button onclick="askAiAboutCurrentQuestion()" class="bg-purple-600 hover:bg-purple-700 text-white text-sm px-4 py-2 rounded transition flex items-center gap-1">
+                        🤖 Hỏi Trợ lý Gemini về bài này
+                    </button>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- HỆ THỐNG WIDGET CHATBOT GEMINI (Mới) -->
+    <div class="fixed bottom-5 right-5 z-50 flex flex-col items-end">
+        <!-- Cửa sổ Chat (Mặc định ẩn) -->
+        <div id="chat-window" class="hidden w-80 md:w-96 h-96 bg-white rounded-lg shadow-2xl border flex flex-col mb-4 overflow-hidden transition-all duration-300">
+            <div class="bg-purple-600 text-white p-3 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="text-xl">🤖</span>
+                    <div>
+                        <h4 class="font-bold text-sm">Gia Sư Toán Gemini</h4>
+                        <p class="text-xs text-purple-200">Luôn sẵn sàng giải đáp</p>
+                    </div>
+                </div>
+                <button onclick="toggleChat()" class="text-white hover:text-gray-200 font-bold text-lg">&times;</button>
+            </div>
+            <!-- Khung chứa tin nhắn -->
+            <div id="chat-messages" class="flex-grow p-3 overflow-y-auto space-y-2 text-sm bg-gray-50">
+                <div class="bg-purple-100 text-purple-900 p-2 rounded-lg max-w-[85%]">
+                    Xin chào! Mình là Gia sư Toán học AI. Nếu bạn gặp khó khăn khi giải toán hoặc cần giải thích sâu hơn, cứ nhắn cho mình nhé! 😉
+                </div>
+            </div>
+            <!-- Ô nhập chat -->
+            <div class="p-2 border-t bg-white flex gap-1">
+                <input type="text" id="chat-input" placeholder="Hỏi công thức, cách giải..." class="flex-grow border rounded px-3 py-1.5 text-sm focus:outline-none focus:border-purple-500" onkeypress="if(event.key === 'Enter') sendChatMessage()">
+                <button onclick="sendChatMessage()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-1.5 rounded text-sm font-medium transition">Gửi</button>
+            </div>
+        </div>
+        <!-- Nút Tròn Bật/Tắt Chatbot -->
+        <button onclick="toggleChat()" class="bg-purple-600 hover:bg-purple-700 text-white p-3.5 rounded-full shadow-lg flex items-center justify-center transition transform hover:scale-110">
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+        </button>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-gray-400 text-center py-4 text-sm mt-6">
+        &copy; 2026 MathAI Platform. Cá nhân hóa trải nghiệm giáo dục số.
+    </footer>
+
+    <script type="module">
+        // Import Google Gen AI SDK từ Module
+        import { GoogleGenAI } from "@google/genai";
+
+        window.geminiApiKey = localStorage.getItem('gemini_api_key') || '';
+        if(window.geminiApiKey) {
+            document.getElementById('api-key-input').value = window.geminiApiKey;
+        }
+
+        window.saveApiKey = function() {
+            const key = document.getElementById('api-key-input').value.trim();
+            if(key) {
+                localStorage.setItem('gemini_api_key', key);
+                window.geminiApiKey = key;
+                alert('Đã lưu API Key thành công!');
+            } else {
+                alert('Vui lòng nhập khóa hợp lệ.');
+            }
+        }
+
+        // Hàm gọi API Gemini gửi tin nhắn
+        window.askGemini = async function(userMessage) {
+            if (!window.geminiApiKey) {
+                return "Vui lòng nhập và lưu Gemini API Key ở khung màu vàng phía trên trước khi trò chuyện với Chatbot nhé!";
+            }
+            try {
+                // Khởi tạo client SDK với API key
+                const ai = new GoogleGenAI({ apiKey: window.geminiApiKey });
+                
+                // Định hình vai trò (system instruction) để Gemini đóng vai Gia sư toán thân thiện
+                const response = await ai.models.generateContent({
+                    model: 'gemini-2.5-flash',
+                    contents: userMessage,
+                    config: {
+                        systemInstruction: "Bạn là một gia sư dạy Toán bậc phổ thông siêu thông minh và vui vẻ. Nhiệm vụ của bạn là giải đáp thắc mắc về toán học, giảng giải các bước tư duy logic một cách ngắn gọn, dễ hiểu và truyền cảm hứng cho học sinh. Hãy trả lời bằng tiếng Việt.",
+                    }
+                });
+                
+                return response.text;
+            } catch (error) {
+                console.error(error);
+                return "Có lỗi kết nối với Gemini. Hãy kiểm tra lại API Key hoặc kết nối mạng của bạn.";
+            }
+        }
+    </script>
+
+    <!-- Logic Vận Hành Ứng Dụng Học Tập & Chat UI -->
+    <script>
+        const questionBank = {
+            algebra: {
+                basic: [
+                    { q: "Tìm x, biết: 2x - 4 = 6", options: ["x = 5", "x = 1", "x = 2", "x = 4"], correct: 0, exp: "Chuyển -4 sang vế phải thành +4: 2x = 6 + 4 => 2x = 10 => x = 5." },
+                    { q: "Phương trình x + 5 = 0 có nghiệm là:", options: ["x = 5", "x = 0", "x = -5", "x = 1"], correct: 2, exp: "Chuyển vế đổi dấu: x = -5." }
+                ],
+                advanced: [
+                    { q: "Giải hệ phương trình: x + y = 5 và 2x - y = 4. Tìm x?", options: ["x = 2", "x = 3", "x = 1", "x = 4"], correct: 1, exp: "Cộng hai phương trình vế theo vế: 3x = 9 => x = 3." },
+                    { q: "Tìm m để phương trình x² - 2x + m = 0 có nghiệm kép?", options: ["m = 0", "m = 2", "m = 1", "m = -1"], correct: 2, exp: "Phương trình có nghiệm kép khi Δ' = 0 => 1 - m = 0 => m = 1." }
+                ]
+            },
+            geometry: {
+                basic: [
+                    { q: "Tính diện tích tam giác có cạnh đáy 6cm và chiều cao 4cm.", options: ["24 cm²", "12 cm²", "10 cm²", "8 cm²"], correct: 1, exp: "Công thức S = (đáy × chiều cao) / 2 = (6 × 4) / 2 = 12 cm²." },
+                    { q: "Hình chữ nhật có chiều dài 5m, chiều rộng 3m thì chu vi bằng bao nhiêu?", options: ["15m", "8m", "16m", "30m"], correct: 2, exp: "Chu vi P = (dài + rộng) × 2 = (5 + 3) × 2 = 16m." }
+                ],
+                advanced: [
+                    { q: "Cho tam giác vuông có hai cạnh góc vuông là 6cm và 8cm. Cạnh huyền dài bao nhiêu?", options: ["10 cm", "14 cm", "12 cm", "100 cm"], correct: 0, exp: "Áp dụng định lý Pitago: Cạnh huyền² = 6² + 8² = 36 + 64 = 100 => Cạnh huyền = 10 cm." },
+                    { q: "Tính thể tích hình lập phương có cạnh bằng 3cm.", options: ["9 cm³", "27 cm³", "6 cm³", "12 cm³"], correct: 1, exp: "Thể tích V = cạnh³ = 3 × 3 × 3 = 27 cm³." }
+                ]
+            }
+        };
+
+        let currentTopic = 'algebra';
+        let currentLevel = 'basic';
+        let currentQuestionIndex = 0;
+        let activeQuestion = null;
+        let correctCountStreak = 0;
+
+        function startLearning() {
+            currentTopic = document.getElementById('topic-select').value;
+            currentLevel = document.getElementById('level-select').value;
+            currentQuestionIndex = 0;
+            correctCountStreak = 0;
+
+            document.getElementById('current-topic-badge').innerText = currentTopic === 'algebra' ? 'Đại Số' : 'Hình Học';
+            document.getElementById('current-level-badge').innerText = currentLevel === 'basic' ? 'Cơ Bản' : 'Nâng Cao';
+            
+            document.getElementById('learning-section').classList.remove('hidden');
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            document.getElementById('feedback-container').classList.add('hidden');
+            const questions = questionBank[currentTopic][currentLevel];
+            
+            if (currentQuestionIndex >= questions.length) currentQuestionIndex = 0;
+
+            activeQuestion = questions[currentQuestionIndex];
+            document.getElementById('question-text').innerText = activeQuestion.q;
+
+            const optionsContainer = document.getElementById('options-container');
+            optionsContainer.innerHTML = '';
+
+            activeQuestion.options.forEach((opt, index) => {
+                const button = document.createElement('button');
+                button.className = "w-full text-left p-3 border rounded-lg hover:bg-blue-50 hover:border-blue-300 transition focus:outline-none focus:ring-2 focus:ring-blue-400 bg-white text-gray-800";
+                button.innerText = `${String.fromCharCode(65 + index)}. ${opt}`;
+                button.onclick = () => checkAnswer(index, button);
+                optionsContainer.appendChild(button);
+            });
+        }
+
+        function checkAnswer(selectedIndex, clickedButton) {
+            const feedbackContainer = document.getElementById('feedback-container');
+            const feedbackMessage = document.getElementById('feedback-message');
+            const feedbackExplanation = document.getElementById('feedback-explanation');
+            
+            const buttons = document.getElementById('options-container').getElementsByTagName('button');
+            for (let btn of buttons) btn.disabled = true;
+
+            if (selectedIndex === activeQuestion.correct) {
+                clickedButton.className = "w-full text-left p-3 border rounded-lg bg-green-100 border-green-400 text-green-800 font-medium";
+                feedbackContainer.className = "p-4 rounded-lg mb-6 bg-green-50 border border-green-200 text-green-900";
+                feedbackMessage.innerText = "🎉 Chính xác! Bạn làm rất tốt.";
+                correctCountStreak++;
+
+                if (currentLevel === 'basic' && correctCountStreak >= 2) {
+                    currentLevel = 'advanced';
+                    correctCountStreak = 0;
+                    document.getElementById('current-level-badge').innerText = 'Nâng Cao (Hệ thống tự động nâng bậc)';
+                    document.getElementById('current-level-badge').className = "ml-1 bg-purple-100 text-purple-800 text-xs font-semibold px-2.5 py-0.5 rounded";
+                }
+            } else {
+                clickedButton.className = "w-full text-left p-3 border rounded-lg bg-red-100 border-red-400 text-red-800";
+                buttons[activeQuestion.correct].className = "w-full text-left p-3 border rounded-lg bg-green-50 border-green-300 text-green-800 font-medium";
+                feedbackContainer.className = "p-4 rounded-lg mb-6 bg-red-50 border border-red-200 text-red-900";
+                feedbackMessage.innerText = "💥 Chưa chính xác rồi. Hãy xem giải thích bên dưới nhé!";
+                correctCountStreak = 0;
+            }
+
+            feedbackExplanation.innerText = `Lời giải chi tiết: ${activeQuestion.exp}`;
+            feedbackContainer.classList.remove('hidden');
+        }
+
+        function nextQuestion() {
+            currentQuestionIndex++;
+            loadQuestion();
+        }
+
+        /* --- XỬ LÝ GIAO DIỆN CHATBOT --- */
+        function toggleChat() {
+            const chatWindow = document.getElementById('chat-window');
+            chatWindow.classList.toggle('hidden');
+        }
+
+        function appendMessage(sender, text) {
+            const messagesContainer = document.getElementById('chat-messages');
+            const msgDiv = document.createElement('div');
+            if(sender === 'user') {
+                msgDiv.className = "bg-blue-600 text-white p-2 rounded-lg max-w-[85%] ml-auto text-right";
+            } else {
+                msgDiv.className = "bg-purple-100 text-purple-900 p-2 rounded-lg max-w-[85%]";
+            }
+            msgDiv.innerText = text;
+            messagesContainer.appendChild(msgDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const query = input.value.trim();
+            if(!query) return;
+
+            appendMessage('user', query);
+            input.value = '';
+
+            // Hiển thị trạng thái đang xử lý
+            appendMessage('ai', 'Đang suy nghĩ...');
+            
+            const aiResponse = await window.askGemini(query);
+            
+            // Xóa dòng "Đang suy nghĩ..." cuối cùng đi và chèn câu trả lời thật
+            const messagesContainer = document.getElementById('chat-messages');
+            messagesContainer.removeChild(messagesContainer.lastChild);
+            
+            appendMessage('ai', aiResponse);
+        }
+
+        // Tính năng tương tác ngữ cảnh câu hỏi hiện tại
+        function askAiAboutCurrentQuestion() {
+            if(!activeQuestion) return;
+            toggleChat();
+            const prompt = `Tôi đang làm câu hỏi toán này: "${activeQuestion.q}". Đáp án đúng là: "${activeQuestion.options[activeQuestion.correct]}". Giải thích của hệ thống là: "${activeQuestion.exp}". Bạn có thể giải thích chi tiết hơn bằng các bước cơ bản hoặc cho tôi thêm một mẹo nhỏ để làm dạng bài này nhanh hơn được không?`;
+            
+            document.getElementById('chat-input').value = `Giải thích thêm cho mình câu hỏi: ${activeQuestion.q}`;
+            sendChatMessage();
+        }
+    </script>
+</body>
+</html>
